@@ -1,0 +1,16 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/CHATBOT
+      - ./data:/CHATBOT/data:rw
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FAISS_BASE_PATH=${FAISS_BASE_PATH}
+      - HISTORY_PATH=${HISTORY_PATH}
+    restart: unless-stopped 
+
