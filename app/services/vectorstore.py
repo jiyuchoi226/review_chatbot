@@ -6,18 +6,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 import re
-from app.services.embedding import TextEmbedding, client
+from app.services.embedding import TextEmbedding
 
 # .env 파일 로드
 load_dotenv()
 
 class VectorStore:
     def __init__(self, dimension: int = 1536):
-        """FAISS 벡터 저장소 초기화
         
-        Args:
-            dimension (int): 임베딩 벡터의 차원 수
-        """
         self.dimension = dimension
         self.index = faiss.IndexFlatL2(self.dimension)
         self.embedder = TextEmbedding()
@@ -25,12 +21,6 @@ class VectorStore:
         self.metadata: List[Dict[str, Any]] = []
         
     def add_texts(self, texts: List[str], metadatas: Optional[List[Dict[str, Any]]] = None) -> None:
-        """텍스트와 메타데이터를 벡터 저장소에 추가
-        
-        Args:
-            texts (List[str]): 저장할 텍스트 리스트
-            metadatas (Optional[List[Dict[str, Any]]]): 텍스트와 연관된 메타데이터
-        """
         embeddings = self.embedder.embed_documents(texts)
         if len(embeddings) == 0:
             return
@@ -44,15 +34,7 @@ class VectorStore:
             self.metadata.extend([{} for _ in texts])
             
     def similarity_search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
-        """쿼리와 가장 유사한 텍스트 검색
         
-        Args:
-            query (str): 검색 쿼리
-            k (int): 반환할 결과 수
-            
-        Returns:
-            List[Dict[str, Any]]: 검색 결과와 메타데이터
-        """
         query_embedding = self.embedder.embed_documents(query)
         if len(query_embedding) == 0:
             return []
@@ -72,11 +54,6 @@ class VectorStore:
         return results
         
     def save(self, directory: str) -> None:
-        """벡터 저장소를 파일로 저장
-        
-        Args:
-            directory (str): 저장할 디렉토리 경로
-        """
         save_path = Path(directory)
         save_path.mkdir(parents=True, exist_ok=True)
         

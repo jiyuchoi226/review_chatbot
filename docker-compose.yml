@@ -12,6 +12,5 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - FAISS_BASE_PATH=${FAISS_BASE_PATH}
       - HISTORY_PATH=${HISTORY_PATH}
-      - AUTHJWT_SECRET_KEY=${AUTHJWT_SECRET_KEY}
     restart: unless-stopped 
 

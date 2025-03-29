@@ -1,6 +1,6 @@
 from typing import List
 from .tokenizer import TextTokenizer
-from .embedding import TextEmbedding, client
+from .embedding import TextEmbedding
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from dotenv import load_dotenv
@@ -16,12 +16,14 @@ class SemanticChunker:
         max_chunk_size: int = 2000,  
         min_chunk_size: int = 200,
         overlap_size: int = 100,
-        similarity_threshold: float = 0.8
+        similarity_threshold: float = 0.8,
+        batch_size: int = 50  # 배치 크기 추가
     ):
         self.max_chunk_size = max_chunk_size
         self.min_chunk_size = min_chunk_size
         self.overlap_size = overlap_size
         self.similarity_threshold = similarity_threshold
+        self.batch_size = batch_size
         self.tokenizer = tokenizer
         self.embedder = TextEmbedding()  
 
@@ -30,8 +32,8 @@ class SemanticChunker:
             return []
 
         token_counts = [self.tokenizer.count_tokens(sent) for sent in sentences]
-        similarities = cosine_similarity(embeddings)
         
+        # 배치 단위로 유사도 계산
         sentence_groups = []
         current_group = []
         current_length = 0
@@ -46,7 +48,11 @@ class SemanticChunker:
             else:
                 if i > 0:
                     prev_idx = i-1
-                    similarity = similarities[prev_idx][i]
+                    # 현재 문장과 이전 문장의 임베딩만 사용하여 유사도 계산
+                    similarity = cosine_similarity(
+                        embeddings[prev_idx:prev_idx+1],
+                        embeddings[i:i+1]
+                    )[0][0]
                     
                     if similarity >= self.similarity_threshold and current_length + current_tokens <= self.max_chunk_size:
                         current_group.append(current_sent)
@@ -91,14 +97,25 @@ class SemanticChunker:
         return chunks
 
     def chunk_text(self, text: str) -> List[str]:
+        # 문장 분리
         sentences = self.tokenizer.preprocess_and_split(text)
         if not sentences:
             return []
             
-        embeddings = self.embedder.embed_documents(sentences)
-        if len(embeddings) == 0:
+        # 배치 단위로 임베딩 생성
+        all_embeddings = []
+        for i in range(0, len(sentences), self.batch_size):
+            batch = sentences[i:i + self.batch_size]
+            batch_embeddings = self.embedder.embed_documents(batch)
+            all_embeddings.extend(batch_embeddings)
+            
+        if not all_embeddings:
             return []
             
+        # 임베딩을 numpy 배열로 변환
+        embeddings = np.array(all_embeddings)
+        
+        # 문장 그룹화 및 청크 생성
         sentence_groups = self._merge_similar_sentences(sentences, embeddings)
         chunks = self._optimize_chunk_size(sentence_groups)
         return chunks
