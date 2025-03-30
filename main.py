@@ -33,11 +33,12 @@ async def chat_endpoint(chat_request: ChatRequest):
                 user_input=chat_request.message,
                 user_id=chat_request.user_id
             ):
-                yield f"data: {json.dumps({'message': chunk})}\n\n"
+                if chunk:  # 빈 청크 건너뛰기
+                    yield chunk
         
         return StreamingResponse(
             generate(),
-            media_type="text/event-stream"
+            media_type="text/plain"  
         )
 
     except Exception as e:
