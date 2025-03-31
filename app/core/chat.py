@@ -273,7 +273,7 @@ class Chatbot:
                 yield collected_chunk
 
             # 후속 질문 생성
-            follow_up_questions = self.suggest_follow_up_questions(user_input, answer)
+            follow_up_questions = self.generate_follow_up_questions(user_input, answer)
             self.save_conversation(user_id, user_input, answer, follow_up_questions)
 
             # 후속 질문을 한 글자씩 스트리밍
@@ -318,86 +318,94 @@ class Chatbot:
             print(f"❌ 키워드 추출 중 오류 발생: {str(e)}")
             return []
 
-
-    # 후속 질문문
-    def suggest_follow_up_questions(self, user_input: str, answer: str) -> List[str]:
+    def generate_follow_up_questions(self, user_input: str, bot_answer: str) -> List[str]:
         try:
-            keywords = self.extract_keywords(user_input)
-            if not keywords:
-                return []
-            print(f"추출된 키워드: {keywords}")
-
-            # 키워드로 관련 문서 검색
-            related_docs = []
-            for keyword in keywords:
-                docs = self.review_data.similarity_search(keyword, k=3)
-                related_docs.extend(docs)
+            # 이전 답변에서 언급된 내용을 추출
+            mentioned_topics = self.extract_mentioned_topics(bot_answer)
             
-            if not related_docs:
-                return []
+            prompt = f"""
+            사용자의 질문과 챗봇의 답변을 바탕으로, 관련된 후속 질문을 생성해주세요.
 
-            # 중복 제거 및 유사도 기준 정렬
-            unique_docs = {}
-            for doc in related_docs:
-                if doc['text'] not in unique_docs:
-                    unique_docs[doc['text']] = doc
-            
-            sorted_docs = sorted(
-                unique_docs.values(),
-                key=lambda x: x['distance'],
-                reverse=True
-            )[:2]  
-            
-            # 후속 질문 생성
-            follow_up_prompt = f"""
-            사용자가 '{user_input}'에 대해 질문했습니다.
-            추출된 키워드는 {', '.join(keywords)}입니다.
-            
-            다음 문서들을 참고하여 관련된 후속 질문을 생성해주세요:
-            {[doc['text'] for doc in sorted_docs]}
-            
-            다음 지침을 따라주세요:
-
-            1. 스마트스토어 FAQ 관련 질문인 경우:
-               - 사용자의 질문과 직접적으로 관련된 후속 질문을 생성하세요
-               - FAQ 데이터 내의 관련 질문을 참고하세요
-
-            2. 스마트스토어 FAQ와 관련 없는 질문인 경우:
-               - 사용자의 질문에서 추출된 키워드를 스마트스토어 맥락으로 변환하세요
-               - 예시:
-                 * "맛집 추천" → "스토어 등록", "판매 상품"
-                 * "날씨" → "배송", "상품 보관"
-                 * "운동" → "스포츠용품 판매", "운동복 스토어"
-               - 변환된 키워드를 바탕으로 스마트스토어 관련 후속 질문을 생성하세요
-               - FAQ 데이터 내의 가장 관련성 높은 질문을 참고하세요
-
-            [공통 지침]
-            1. 후속 질문은 1-2개로 생성해주세요
-            2. 각 질문은 한 문장으로 작성해주세요
+            [규칙]
+            1. 이전 답변에서 이미 언급된 내용은 제외해주세요
+            2. 답변에서 다루지 않은 새로운 관점의 질문을 생성해주세요
             3. 모든 후속 질문은 반드시 스마트스토어와 관련되어야 합니다
             4. 질문은 FAQ 데이터 내의 질문 형식을 따르세요
-            5. 후속 질문 앞에는 ⦁ 하나를 붙여서 구분해주세요.
+            5. 후속 질문 앞에는 ⦁ 하나를 붙여서 구분해주세요
 
-            예시1)
-            ⦁ 스마트스토어에서 음식점 등록이 가능한가요?
-            ⦁ 식품 판매를 위한 스토어 등록 절차가 궁금하신가요?
+            [이전 답변에서 언급된 내용]
+            {mentioned_topics}
 
-            예시2)
-            ⦁ 우산 판매 스토어 등록이 궁금하신가요?
-            ⦁ 비옷 판매를 위한 스토어 등록 절차가 궁금하신가요?
+            [예시]
+            질문: 미성년자도 상품 등록할 수 있나요?
+            답변: 미성년자가 스마트스토어에 상품을 등록하는 것은 법적으로 제한됩니다. 
+                  스마트스토어를 운영하기 위해서는 사업자 등록증이 필요하며, 
+                  이를 발급받기 위해서는 만 19세 이상이어야 합니다. 
+                  또한, 미성년자가 스마트스토어 운영을 위해서는 부모님의 도움이 필요합니다.
+
+            후속 질문 예시:
+            ⦁ 미성년자가 스마트스토어를 운영하기 위한 법적 절차가 궁금하신가요?
+            ⦁ 미성년자 스마트스토어 운영 시 세금 신고는 어떻게 해야 하나요?
+
+            ---
+            사용자 질문:
+            {user_input}
+
+            ---
+            챗봇 답변:
+            {bot_answer}
+
+            ---
+            후속 질문을 생성해주세요:
             """
 
             response = openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": follow_up_prompt}],
-                max_tokens=1000,
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=300,
                 n=1,
                 temperature=0.7
             )
             
-            follow_up_questions = response.choices[0].message.content.strip().split('\n')
-            return [question.strip() for question in follow_up_questions if question.strip()]
+            questions = response.choices[0].message.content.strip().split('\n')
+            questions = [q.strip() for q in questions if q.strip().startswith('⦁')]
+            
+            # 이전 답변에서 언급된 내용과 중복되는 질문 제거
+            filtered_questions = []
+            for question in questions:
+                if not any(topic in question for topic in mentioned_topics):
+                    filtered_questions.append(question)
+            
+            return filtered_questions[:3]  # 최대 3개만 반환
 
         except Exception as e:
             print(f"❌ 후속 질문 생성 중 오류 발생: {str(e)}")
+            return []
+
+    def extract_mentioned_topics(self, text: str) -> List[str]:
+        """답변에서 언급된 주요 주제들을 추출합니다."""
+        try:
+            prompt = f"""
+            다음 텍스트에서 언급된 주요 주제들을 추출해주세요.
+            각 주제는 짧은 키워드나 구문으로 표현해주세요.
+
+            텍스트:
+            {text}
+
+            주제들을 쉼표로 구분하여 나열해주세요.
+            """
+
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=100,
+                n=1,
+                temperature=0.3
+            )
+            
+            topics = response.choices[0].message.content.strip().split(',')
+            return [topic.strip() for topic in topics if topic.strip()]
+            
+        except Exception as e:
+            print(f"❌ 주제 추출 중 오류 발생: {str(e)}")
             return []
