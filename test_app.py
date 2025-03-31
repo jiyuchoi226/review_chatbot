@@ -4,7 +4,8 @@ import json
 import time
 
 # FastAPI 서버 URL
-API_URL = "http://localhost:8080"
+# API_URL = "http://localhost:8080"
+API_URL = "http://localhost:8000"
 
 def chat_with_bot(message, user_id="test_user"):
     try:
