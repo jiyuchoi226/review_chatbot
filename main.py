@@ -42,7 +42,7 @@ async def chat_endpoint(chat_request: ChatRequest):
         )
 
     except Exception as e:
-        print(f"Chat error: {str(e)}")
+        print(f"Chat error: {str(e)}")  # 디버그 로그 추가
         raise HTTPException(
             status_code=400,
             detail=f"챗봇 응답 생성 실패: {str(e)}"

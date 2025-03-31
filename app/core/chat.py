@@ -163,7 +163,7 @@ class Chatbot:
             # 후속 질문이 있는 경우 답변에 추가
             full_answer = bot_answer
             if follow_up_questions:
-                full_answer = f"{bot_answer}\n\n" + "\n".join(follow_up_questions)
+                full_answer = f"{bot_answer}\n\n" + "\n\n".join(follow_up_questions)
             
             # 대화 저장
             self.conversation_history.add_conversation(
@@ -376,14 +376,15 @@ class Chatbot:
             2. 각 질문은 한 문장으로 작성해주세요
             3. 모든 후속 질문은 반드시 스마트스토어와 관련되어야 합니다
             4. 질문은 FAQ 데이터 내의 질문 형식을 따르세요
+            5. 후속 질문 앞에는 ⦁ 하나를 붙여서 구분해주세요.
 
             예시1)
-            - 음식점 스토어 등록이 가능한지 궁금하신가요?
-            - 식품 판매를 위한 스토어 등록 절차가 궁금하신가요?
+            ⦁ 스마트스토어에서 음식점 등록이 가능한가요?
+            ⦁ 식품 판매를 위한 스토어 등록 절차가 궁금하신가요?
 
             예시2)
-            - 우산 판매 스토어 등록이 궁금하신가요?
-            - 비옷 판매를 위한 스토어 등록 절차가 궁금하신가요?
+            ⦁ 우산 판매 스토어 등록이 궁금하신가요?
+            ⦁ 비옷 판매를 위한 스토어 등록 절차가 궁금하신가요?
             """
 
             response = openai.chat.completions.create(
@@ -394,8 +395,8 @@ class Chatbot:
                 temperature=0.7
             )
             
-            follow_up_question = response.choices[0].message.content.strip()
-            return [f"- {follow_up_question}"]
+            follow_up_questions = response.choices[0].message.content.strip().split('\n')
+            return [question.strip() for question in follow_up_questions if question.strip()]
 
         except Exception as e:
             print(f"❌ 후속 질문 생성 중 오류 발생: {str(e)}")

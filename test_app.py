@@ -4,7 +4,7 @@ import json
 import time
 
 # FastAPI 서버 URL
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:8080"
 
 def chat_with_bot(message, user_id="test_user"):
     try:
@@ -21,7 +21,7 @@ def chat_with_bot(message, user_id="test_user"):
         for chunk in response.iter_content(chunk_size=1, decode_unicode=True):
             if chunk:
                 full_response += chunk
-                message_placeholder.markdown(full_response + "▌")
+                message_placeholder.markdown(full_response + "|")
                 if chunk in [".", "!", "?", "\n"]:
                     time.sleep(0.1)  # 문장 끝에서 좀 더 긴 딜레이
                 elif chunk == " ":
@@ -38,7 +38,25 @@ def chat_with_bot(message, user_id="test_user"):
 
 # Streamlit UI
 st.title("스마트 스토어 FAQ 챗봇 테스트")
+# 커스텀 CSS
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap');
+    * { font-family: 'IBM Plex Sans KR', sans-serif !important;}
+ 
+    .e1nzilvr1{
+        font-size: 30px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
+# 소개 메시지
+st.markdown("""
+<div style='padding: 1rem; background-color: #f0f2f6; border-radius: 0.5rem; margin-bottom: 2rem;'>
+    <span style='margin: 0px; font-weight: 600;'>안녕하세요! 스마트 스토어 FAQ 챗봇입니다 👋</span>
+    <p style='margin: 0px;'>스마트 스토어에 대해 궁금하신 점을 자유롭게 물어보세요.</p>
+</div>
+""", unsafe_allow_html=True)
 # 세션 상태 초기화
 if "messages" not in st.session_state:
     st.session_state.messages = []
